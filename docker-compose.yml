@@ -2,6 +2,7 @@
 services:
   db:
     image: postgres:12-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_DB: evamed_total
       POSTGRES_USER: myprojectuser
@@ -10,23 +11,32 @@ services:
       - db_data:/var/lib/postgresql/data
       - ./backend/evamed-api/backup:/docker-entrypoint-initdb.d/backup:ro
       - ./backend/evamed-api/docker/postgres/initdb/01-restore.sh:/docker-entrypoint-initdb.d/01-restore.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U myprojectuser -d evamed_total"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   api:
     build: ./backend/evamed-api
-    command: sh -c "python manage.py migrate && gunicorn profiles_project.wsgi:application --bind 0.0.0.0:8000"
+    command: sh -c "python manage.py collectstatic --noinput && python manage.py migrate && gunicorn profiles_project.wsgi:application -c /app/gunicorn.conf.py"
+    restart: unless-stopped
     environment:
       DB_NAME: evamed_total
       DB_USER: myprojectuser
       DB_PASSWORD: password
       DB_HOST: db
       DB_PORT: "5432"
+      DJANGO_DEBUG: "False"
     ports:
       - "8000:8000"
     depends_on:
-      - db
+      db:
+        condition: service_healthy
 
   web:
     build: ./frontend/evamed
+    restart: unless-stopped
     environment:
       PORT: "8080"
     ports:
