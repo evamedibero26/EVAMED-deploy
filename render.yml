@@ -1,0 +1,54 @@
+databases:
+  - name: evamed-db
+    databaseName: evamed_total
+    user: myprojectuser
+    plan: free
+
+services:
+  - type: web
+    name: evamed-api
+    env: docker
+    dockerfilePath: ./backend/evamed-api/Dockerfile
+    dockerContext: ./backend/evamed-api
+    plan: free
+    healthCheckPath: /api/health/
+    envVars:
+      - key: DB_NAME
+        fromDatabase:
+          name: evamed-db
+          property: database
+      - key: DB_USER
+        fromDatabase:
+          name: evamed-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: evamed-db
+          property: password
+      - key: DB_HOST
+        fromDatabase:
+          name: evamed-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: evamed-db
+          property: port
+      - key: DJANGO_DEBUG
+        value: "False"
+      - key: SECRET_KEY
+        generateValue: true
+
+  - type: web
+    name: evamed-frontend
+    env: docker
+    dockerfilePath: ./frontend/evamed/Dockerfile
+    dockerContext: ./frontend/evamed
+    plan: free
+    envVars:
+      - key: PORT
+        value: "8080"
+      - key: API_URL
+        fromService:
+          name: evamed-api
+          type: web
+          property: host
